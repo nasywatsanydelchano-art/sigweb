@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- CSS Library Leaflet (peta interaktif) -->
+    <link rel="stylesheet" href="css/leaflet.css" />
+    <link rel="stylesheet" href="css/L.Control.Layers.Tree.css" />
+    <link rel="stylesheet" href="css/qgis2web.css" />
+    <link rel="stylesheet" href="css/fontawesome-all.min.css" />
+    <link rel="stylesheet" href="css/leaflet.photon.css" />
+
+    <title>WebGIS Kebumen</title>
+
+    <style>
+      /* ============================================================
+       VARIABEL WARNA — ubah di sini untuk ganti tema
+    ============================================================ */
+      :root {
+        --biru-tua: #1a3a6b; /* warna header & aksen gelap */
+        --biru-muda: #2b6edc; /* warna tombol & aksen */
+        --bg: #f5f7fa; /* background halaman */
+        --putih: #ffffff;
+        --teks: #1e2940; /* warna teks utama */
+        --teks-abu: #5a6a8a; /* warna teks sekunder */
+        --border: #dce4f0; /* garis pembatas */
+        --radius: 10px; /* sudut melengkung kartu */
+      }
+
+      /* ============================================================
+       RESET — hapus margin & padding default browser
+    ============================================================ */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--teks);
+        height: auto;
+        overflow-y: auto;
+      }
+
+      /* ============================================================
+       HEADER — bagian judul di atas
+    ============================================================ */
+      #header {
+        background: var(--biru-tua);
+        padding: 18px 28px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      #header h1 {
+        font-size: 20px;
+        color: #ffffff;
+        font-weight: 700;
+      }
+
+      #header p {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.65);
+        margin-top: 3px;
+      }
+
+      .badge-tahun {
+        margin-left: auto;
+        background: rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 11px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        white-space: nowrap;
+      }
+
+      /* ============================================================
+       PETA — area peta interaktif Leaflet
+    ============================================================ */
+      #map {
+        width: 100%;
+        height: 60vh; /* tinggi peta = 60% tinggi layar */
+        border-bottom: 1px solid var(--border);
+      }
+
+      /* ============================================================
+       STATISTIK BAR — ringkasan angka di bawah peta
+    ============================================================ */
+      #statsbar {
+        background: var(--putih);
+        border-bottom: 1px solid var(--border);
+        padding: 0 28px;
+        display: flex;
+        gap: 0;
+        overflow-x: auto; /* scroll horizontal di layar kecil */
+      }
+
+      .stat-item {
+        padding: 14px 24px 14px 0;
+        margin-right: 24px;
+        border-right: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+
+      .stat-item:last-child {
+        border-right: none;
+      }
+
+      .stat-label {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--teks-abu);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .stat-value {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--biru-muda);
+        margin-top: 2px;
+      }
+
+      .stat-sub {
+        font-size: 11px;
+        color: var(--teks-abu);
+      }
+
+      /* ============================================================
+       KONTEN UTAMA — grid 2 kolom (kiri: info, kanan: identitas)
+    ============================================================ */
+      #konten {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 28px;
+        display: grid;
+        grid-template-columns: 1fr 320px; /* kolom kiri fleksibel, kanan 320px */
+        gap: 24px;
+        align-items: start;
+      }
+
+      /* Kolom kiri: kartu-kartu informasi */
+      #kolom-kiri {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      /* ============================================================
+       KARTU — komponen kartu informasi
+    ============================================================ */
+      .kartu {
+        background: var(--putih);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+      }
+
+      .kartu-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .kartu-header h3 {
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .ikon-header {
+        width: 30px;
+        height: 30px;
+        background: #dbeafe;
+        border-radius: 7px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .ikon-header svg {
+        width: 14px;
+        height: 14px;
+        stroke: var(--biru-muda);
+        fill: none;
+        stroke-width: 2;
+      }
+
+      .kartu-body {
+        padding: 18px 20px;
+      }
+
+      /* paragraf di dalam kartu */
+      .kartu-body p {
+        font-size: 13.5px;
+        line-height: 1.75;
+        color: var(--teks-abu);
+      }
+
+      .kartu-body p + p {
+        margin-top: 10px;
+      }
+
+      /* tag sumber data */
+      .sumber-data {
+        display: inline-block;
+        font-size: 11px;
+        color: var(--teks-abu);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 4px 10px;
+        margin-top: 14px;
+      }
+
+      /* ============================================================
+       KARTU ANALISIS — daftar poin analisis
+    ============================================================ */
+      .daftar-analisis {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .poin-analisis {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      /* bulatan biru di sebelah kiri poin */
+      .bulat {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--biru-muda);
+        flex-shrink: 0;
+        margin-top: 6px;
+      }
+
+      .teks-analisis {
+        font-size: 13.5px;
+        line-height: 1.7;
+        color: var(--teks-abu);
+      }
+
+      .teks-analisis strong {
+        color: var(--teks);
+        font-weight: 600;
+      }
+
+      /* ============================================================
+       KARTU IDENTITAS — profil mahasiswa (kolom kanan)
+    ============================================================ */
+      .kartu-identitas {
+      }
+
+      /* bagian atas kartu identitas (biru gelap) */
+      .id-atas {
+        background: var(--biru-tua);
+        padding: 24px 20px;
+        text-align: center;
+      }
+
+      .avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 12px;
+      }
+
+      .avatar svg {
+        width: 30px;
+        height: 30px;
+        stroke: rgba(255, 255, 255, 0.9);
+        fill: none;
+        stroke-width: 1.5;
+      }
+
+      .id-atas h3 {
+        font-size: 17px;
+        font-weight: 700;
+        color: #ffffff;
+      }
+
+      .id-nim {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: 4px;
+        letter-spacing: 1px;
+      }
+
+      /* bagian bawah kartu identitas (tabel detail) */
+      .id-bawah {
+        padding: 20px;
+      }
+
+      .tabel-id {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .tabel-id tr {
+        border-bottom: 1px solid var(--border);
+      }
+
+      .tabel-id tr:last-child {
+        border-bottom: none;
+      }
+
+      .tabel-id td {
+        padding: 9px 4px;
+        font-size: 12.5px;
+        vertical-align: top;
+      }
+
+      /* kolom label (kiri) */
+      .tabel-id td:first-child {
+        color: var(--teks-abu);
+        font-weight: 500;
+        width: 45%;
+      }
+
+      /* kolom nilai (kanan) */
+      .tabel-id td:last-child {
+        color: var(--teks);
+        font-weight: 600;
+      }
+
+      /* tombol aksi di bawah tabel */
+      .tombol-aksi {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+      }
+
+      .tombol-utama {
+        flex: 1;
+        background: var(--biru-muda);
+        color: #ffffff;
+        font-size: 12.5px;
+        font-weight: 600;
+        padding: 9px 14px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        display: block;
+        transition: background 0.2s;
+      }
+
+      .tombol-utama:hover {
+        background: #1a4fbf;
+      }
+
+      .tombol-outline {
+        width: 36px;
+        height: 36px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        color: var(--teks-abu);
+        font-size: 14px;
+        transition: border-color 0.2s;
+      }
+
+      .tombol-outline:hover {
+        border-color: var(--biru-muda);
+        color: var(--biru-muda);
+      }
+
+      /* ============================================================
+       FOOTER
+    ============================================================ */
+      #footer {
+        background: var(--putih);
+        border-top: 1px solid var(--border);
+        text-align: center;
+        padding: 16px 20px;
+        font-size: 11.5px;
+        color: var(--teks-abu);
+      }
+
+      #footer a {
+        color: var(--biru-muda);
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      #footer a:hover {
+        text-decoration: underline;
+      }
+
+      #footer .sep {
+        margin: 0 8px;
+        color: var(--border);
+      }
+
+      /* ============================================================
+       RESPONSIF — tampilan di layar kecil (HP/tablet)
+    ============================================================ */
+      @media (max-width: 800px) {
+        #konten {
+          grid-template-columns: 1fr; /* 1 kolom di layar kecil */
+          padding: 20px 16px;
+        }
+
+        #header {
+          padding: 14px 16px;
+        }
+
+        .badge-tahun {
+          display: none;
+        }
+
+        #statsbar {
+          padding: 0 16px;
+        }
+
+        #legenda {
+          padding: 10px 16px;
+        }
+
+        #map {
+          height: 50vh;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- ============================================================
+       HEADER — judul WebGIS
+  ============================================================ -->
+    <div id="header">
+      <div>
+        <h1>WebGIS Kabupaten Kebumen</h1>
+        <p>Kepadatan Penduduk &amp; Layanan Kesehatan</p>
+      </div>
+    </div>
+
+    <!-- ============================================================
+       PETA — dirender oleh Leaflet.js
+  ============================================================ -->
+    <div id="map"></div>
+
+    <!-- ============================================================
+       STATISTIK BAR — ringkasan data
+  ============================================================ -->
+    <div id="statsbar">
+      <div class="stat-item">
+        <div class="stat-label">Kabupaten</div>
+        <div class="stat-value">Kebumen</div>
+        <div class="stat-sub">Jawa Tengah</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Kecamatan</div>
+        <div class="stat-value">26</div>
+        <div class="stat-sub">wilayah</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Sumber Data</div>
+        <div class="stat-value" style="font-size: 13px; font-weight: 600; padding-top: 2px">BPS &amp; OSM</div>
+        <div class="stat-sub">data publik</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Klasifikasi</div>
+        <div class="stat-value" style="font-size: 13px; font-weight: 600; padding-top: 2px">3 Kelas</div>
+        <div class="stat-sub">kepadatan penduduk</div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+       KONTEN UTAMA — informasi & identitas mahasiswa
+  ============================================================ -->
+    <div id="konten">
+      <!-- KOLOM KIRI: Tentang Peta + Hasil Analisis -->
+      <div id="kolom-kiri">
+        <!-- Kartu: Tentang Peta -->
+        <div class="kartu">
+          <div class="kartu-header">
+            <div class="ikon-header">
+              <!-- ikon info -->
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <h3>Tentang Peta</h3>
+          </div>
+          <div class="kartu-body">
+            <p>
+              WebGIS ini menampilkan distribusi kepadatan penduduk serta sebaran fasilitas layanan kesehatan di Kabupaten Kebumen, Provinsi Jawa Tengah. Data kepadatan diklasifikasikan ke dalam tiga kelas berdasarkan jumlah penduduk per km²
+              di setiap kecamatan.
+            </p>
+            <p>Titik-titik layanan kesehatan mencakup rumah sakit, puskesmas, dan fasilitas medis lainnya yang bersumber dari OpenStreetMap. Klik area atau titik pada peta untuk melihat informasi detail.</p>
+            <div class="sumber-data">📊 BPS Kabupaten Kebumen &nbsp;·&nbsp; © OpenStreetMap Contributors</div>
+          </div>
+        </div>
+
+        <!-- Kartu: Hasil Analisis -->
+        <div class="kartu">
+          <div class="kartu-header">
+            <div class="ikon-header">
+              <!-- ikon grafik -->
+              <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
+            </div>
+            <h3>Hasil Analisis</h3>
+          </div>
+          <div class="kartu-body">
+            <div class="daftar-analisis">
+              <div class="poin-analisis">
+                <div class="bulat"></div>
+                <div class="teks-analisis"><strong>Konsentrasi Perkotaan.</strong> Wilayah dengan kepadatan tinggi terpusat di sekitar ibukota kabupaten dan kecamatan yang berdekatan dengan pusat ekonomi.</div>
+              </div>
+
+              <div class="poin-analisis">
+                <div class="bulat"></div>
+                <div class="teks-analisis"><strong>Korelasi Positif.</strong> Wilayah dengan kepadatan penduduk tinggi cenderung memiliki lebih banyak fasilitas layanan kesehatan dibandingkan wilayah yang jarang penduduknya.</div>
+              </div>
+
+              <div class="poin-analisis">
+                <div class="bulat"></div>
+                <div class="teks-analisis"><strong>Distribusi Belum Merata.</strong> Beberapa kecamatan di wilayah selatan dan utara masih kekurangan aksesibilitas layanan kesehatan relatif terhadap jumlah penduduknya.</div>
+              </div>
+
+              <div class="poin-analisis">
+                <div class="bulat"></div>
+                <div class="teks-analisis"><strong>Rekomendasi.</strong> Perlu optimalisasi distribusi fasilitas kesehatan di kecamatan kepadatan rendah–sedang untuk pemerataan akses layanan publik.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- akhir kolom kiri -->
+
+      <!-- KOLOM KANAN: Kartu Identitas Mahasiswa -->
+      <div class="kartu kartu-identitas">
+        <!-- Bagian atas: foto/avatar + nama -->
+        <div class="id-atas">
+          <div class="avatar">
+            <!-- ikon orang -->
+            <svg viewBox="0 0 24 24">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </div>
+          <h3>Nasywa Tsany Del Chano</h3>
+          <div class="id-nim">NIM: 24/542391/SV/25039</div>
+        </div>
+
+        <!-- Bagian bawah: tabel detail -->
+        <div class="id-bawah">
+          <table class="tabel-id">
+            <tr>
+              <td>Program Studi</td>
+              <td>Teknologi Survei dan Pemetaan Dasar</td>
+            </tr>
+            <tr>
+              <td>Universitas</td>
+              <td>Universitas Gadjah Mada</td>
+            </tr>
+            <tr>
+              <td>Mata Kuliah</td>
+              <td>Sistem Informasi Geografis berbasis WEB</td>
+            </tr>
+            <tr>
+              <td>Tahun Ajaran</td>
+              <td>2024 / 2025</td>
+            </tr>
+            <tr>
+              <td>Dosen</td>
+              <td>Erlyna Nour Arrofiqoh, S.T., M.Eng.</td>
+            </tr>
+          </table>
+
+          <div class="tombol-aksi">
+            <a href="index.html" target="_blank" class="tombol-utama">📄 Lihat CV</a>
+            <a href="#" class="tombol-outline">✉</a>
+          </div>
+        </div>
+      </div>
+      <!-- akhir kolom kanan -->
+    </div>
+    <!-- akhir konten -->
+
+    <!-- ============================================================
+       FOOTER
+  ============================================================ -->
+    <div id="footer">
+      © 2024 WebGIS Kabupaten Kebumen
+      <span class="sep">·</span>
+      Dibuat dengan <a href="https://qgis.org" target="_blank">QGIS</a> +
+      <a href="https://leafletjs.com" target="_blank">Leaflet.js</a>
+      <span class="sep">·</span>
+      Data: <a href="https://www.bps.go.id" target="_blank">BPS</a> &amp;
+      <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a>
+    </div>
+
+    <!-- ============================================================
+       SCRIPTS — urutan penting! jangan diubah
+  ============================================================ -->
+
+    <!-- 1. Library pendukung Leaflet -->
+    <script src="js/qgis2web_expressions.js"></script>
+    <script src="js/leaflet.js"></script>
+    <script src="js/L.Control.Layers.Tree.min.js"></script>
+    <script src="js/leaflet.rotatedMarker.js"></script>
+    <script src="js/leaflet.pattern.js"></script>
+    <script src="js/leaflet-hash.js"></script>
+    <script src="js/Autolinker.min.js"></script>
+    <script src="js/rbush.min.js"></script>
+    <script src="js/labelgun.min.js"></script>
+    <script src="js/labels.js"></script>
+    <script src="js/leaflet.photon.js"></script>
+
+    <!-- 2. Data GeoJSON (layer peta) -->
+    <script src="data/PetaKabupatenKebumen_1.js"></script>
+    <script src="data/LayananKesehatan_2.js"></script>
+
+    <script>
+      /* =============================================================
+       INISIALISASI PETA
+       - fitBounds: zoom otomatis ke wilayah Kebumen
+    ============================================================= */
+      var map = L.map("map", {
+        zoomControl: false, // tombol zoom kita atur sendiri
+        maxZoom: 28,
+        minZoom: 1,
+      }).fitBounds([
+        [-7.835940468405512, 109.35233729087507],
+        [-7.452421779657924, 109.88004943358236],
+      ]);
+
+      // tambahkan hash URL (simpan posisi peta di address bar)
+      var hash = new L.Hash(map);
+
+      // ubah teks credit di pojok kanan bawah peta
+      map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web">qgis2web</a> · Leaflet · QGIS');
+
+      // library untuk auto-link teks di popup
+      var autolinker = new Autolinker({ truncate: { length: 30, location: "smart" } });
+
+      /* =============================================================
+       FUNGSI UTILITAS POPUP
+       - removeEmptyRowsFromPopupContent: hapus baris kosong di popup
+       - addClassToPopupIfMedia: handle jika popup berisi gambar/video
+    ============================================================= */
+      function removeEmptyRowsFromPopupContent(content, feature) {
+        var tempDiv = document.createElement("div");
+        tempDiv.innerHTML = content;
+        var rows = tempDiv.querySelectorAll("tr");
+        for (var i = 0; i < rows.length; i++) {
+          var td = rows[i].querySelector("td.visible-with-data");
+          var key = td ? td.id : "";
+          if (td && td.classList.contains("visible-with-data") && feature.properties[key] == null) {
+            rows[i].parentNode.removeChild(rows[i]);
+          }
+        }
+        return tempDiv.innerHTML;
+      }
+
+      function addClassToPopupIfMedia(content, popup) {
+        var tempDiv = document.createElement("div");
+        tempDiv.innerHTML = content;
+        var imgTd = tempDiv.querySelector("td img");
+        if (imgTd) {
+          var src = imgTd.getAttribute("src");
+          if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+            popup._contentNode.classList.add("media");
+            setTimeout(function () {
+              popup.update();
+            }, 10);
+          }
+        } else {
+          popup._contentNode.classList.remove("media");
+        }
+      }
+
+      /* =============================================================
+       KONTROL PETA
+    ============================================================= */
+      // Tombol zoom di pojok kiri atas
+      var zoomControl = L.control.zoom({ position: "topleft" }).addTo(map);
+
+      // Grup semua layer (untuk fitur setBounds)
+      var bounds_group = new L.featureGroup([]);
+      function setBounds() {}
+
+      /* =============================================================
+       LAYER 0 — BASEMAP: OpenStreetMap
+    ============================================================= */
+      map.createPane("pane_OSMStandard_0");
+      map.getPane("pane_OSMStandard_0").style.zIndex = 400;
+
+      var layer_OSMStandard_0 = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        pane: "pane_OSMStandard_0",
+        opacity: 1.0,
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        minZoom: 1,
+        maxZoom: 28,
+        minNativeZoom: 0,
+        maxNativeZoom: 19,
+      });
+      map.addLayer(layer_OSMStandard_0);
+
+      /* =============================================================
+       LAYER 1 — Peta Kepadatan Kecamatan Kebumen (Poligon)
+       - pop_*  : fungsi popup saat layer diklik
+       - style_*: fungsi pewarnaan berdasarkan nilai Kepadatan
+    ============================================================= */
+
+      // Popup untuk layer kecamatan
+      function pop_PetaKabupatenKebumen_1(feature, layer) {
+        var popupContent =
+          "<table>\
+          <tr><th>Kecamatan</th><td>" +
+          (feature.properties["Kecamatan"] || "-") +
+          "</td></tr>\
+          <tr><th>Kepadatan</th><td>" +
+          (feature.properties["Kepadatan"] || "-") +
+          " jiwa/km²</td></tr>\
+          <tr><th>Total</th><td>" +
+          (feature.properties["Total"] || "-") +
+          " jiwa</td></tr>\
+          <tr><th>Lelaki</th><td>" +
+          (feature.properties["Lelaki"] || "-") +
+          "</td></tr>\
+          <tr><th>Wanita</th><td>" +
+          (feature.properties["Wanita"] || "-") +
+          "</td></tr>\
+          <tr><th>Luas</th><td>" +
+          (feature.properties["Luas"] || "-") +
+          " km²</td></tr>\
+        </table>";
+
+        var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+        layer.on("popupopen", function (e) {
+          addClassToPopupIfMedia(content, e.popup);
+        });
+        layer.bindPopup(content, { maxHeight: 400 });
+      }
+
+      // Warna poligon berdasarkan nilai kepadatan
+      // (3 kelas = rendah / sedang / tinggi)
+      function style_PetaKabupatenKebumen_1_0(feature) {
+        var base = {
+          pane: "pane_PetaKabupatenKebumen_1",
+          opacity: 1,
+          color: "rgba(35,35,35,1.0)", // warna garis tepi
+          weight: 1.0,
+          fill: true,
+          fillOpacity: 1,
+          interactive: true,
+        };
+
+        var k = feature.properties["Kepadatan"];
+
+        if (k >= 433 && k <= 994) return { ...base, fillColor: "#b1daff" }; // rendah  = biru sangat muda
+        if (k >= 994 && k <= 1248) return { ...base, fillColor: "#73b2d8" }; // sedang  = biru muda
+        if (k >= 1248 && k <= 2936) return { ...base, fillColor: "#0067ff" }; // tinggi  = biru tua
+      }
+
+      map.createPane("pane_PetaKabupatenKebumen_1");
+      map.getPane("pane_PetaKabupatenKebumen_1").style.zIndex = 401;
+
+      var layer_PetaKabupatenKebumen_1 = new L.geoJson(json_PetaKabupatenKebumen_1, {
+        attribution: "",
+        interactive: true,
+        dataVar: "json_PetaKabupatenKebumen_1",
+        layerName: "layer_PetaKabupatenKebumen_1",
+        pane: "pane_PetaKabupatenKebumen_1",
+        onEachFeature: pop_PetaKabupatenKebumen_1,
+        style: style_PetaKabupatenKebumen_1_0,
+      });
+      bounds_group.addLayer(layer_PetaKabupatenKebumen_1);
+      map.addLayer(layer_PetaKabupatenKebumen_1);
+
+      /* =============================================================
+       LAYER 2 — Layanan Kesehatan (Titik/Marker)
+    ============================================================= */
+
+      // Popup untuk titik layanan kesehatan
+      function pop_LayananKesehatan_2(feature, layer) {
+        var popupContent =
+          "<table>\
+          <tr><th>Fasilitas</th><td>" +
+          (feature.properties["amenity"] || "-") +
+          "</td></tr>\
+          <tr><th>Nama</th><td>" +
+          (feature.properties["name"] || "-") +
+          "</td></tr>\
+          <tr><th>Operator</th><td>" +
+          (feature.properties["operator"] || "-") +
+          "</td></tr>\
+          <tr><th>Alamat</th><td>" +
+          (feature.properties["addr_stree"] || "-") +
+          "</td></tr>\
+        </table>";
+
+        var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+        layer.on("popupopen", function (e) {
+          addClassToPopupIfMedia(content, e.popup);
+        });
+        layer.bindPopup(content, { maxHeight: 400 });
+      }
+
+      // Style marker: menggunakan ikon SVG
+      function style_LayananKesehatan_2_0() {
+        return {
+          pane: "pane_LayananKesehatan_2",
+          icon: L.icon({
+            iconUrl: "markers/LayananKesehatan_2.svg",
+            iconSize: [19, 19],
+          }),
+          interactive: true,
+        };
+      }
+
+      map.createPane("pane_LayananKesehatan_2");
+      map.getPane("pane_LayananKesehatan_2").style.zIndex = 402;
+
+      var layer_LayananKesehatan_2 = new L.geoJson(json_LayananKesehatan_2, {
+        attribution: "",
+        interactive: true,
+        dataVar: "json_LayananKesehatan_2",
+        layerName: "layer_LayananKesehatan_2",
+        pane: "pane_LayananKesehatan_2",
+        onEachFeature: pop_LayananKesehatan_2,
+        pointToLayer: function (feature, latlng) {
+          return L.marker(latlng, style_LayananKesehatan_2_0(feature));
+        },
+      });
+      bounds_group.addLayer(layer_LayananKesehatan_2);
+      map.addLayer(layer_LayananKesehatan_2);
+
+      /* =============================================================
+       KONTROL LAYER — panel centang layer (kanan atas peta)
+    ============================================================= */
+      var overlaysTree = [
+        {
+          label: '<img src="legend/LayananKesehatan_2.png" /> Layanan Kesehatan',
+          layer: layer_LayananKesehatan_2,
+        },
+        {
+          label:
+            'Peta Kabupaten Kebumen<br>\
+          <table>\
+            <tr><td><img src="legend/PetaKabupatenKebumen_1_KepadatanRendah0.png" /></td><td>Rendah</td></tr>\
+            <tr><td><img src="legend/PetaKabupatenKebumen_1_KepadatanSedang1.png" /></td><td>Sedang</td></tr>\
+            <tr><td><img src="legend/PetaKabupatenKebumen_1_KepadatanTinggi2.png" /></td><td>Tinggi</td></tr>\
+          </table>',
+          layer: layer_PetaKabupatenKebumen_1,
+        },
+        {
+          label: "OSM Standard",
+          layer: layer_OSMStandard_0,
+          radioGroup: "bm",
+        },
+      ];
+
+      var layerControl = L.control.layers.tree(null, overlaysTree, { collapsed: false });
+      layerControl.addTo(map);
+
+      /* =============================================================
+       LABEL KECAMATAN — teks nama kecamatan di atas peta
+    ============================================================= */
+      setBounds();
+      var i = 0;
+      layer_PetaKabupatenKebumen_1.eachLayer(function (layer) {
+        layer.bindTooltip(layer.feature.properties["Kecamatan"] ? '<div style="color:#323232; font-size:10pt; font-weight:bold;">' + layer.feature.properties["Kecamatan"] + "</div>" : "", {
+          permanent: true,
+          offset: [0, -16],
+          className: "css_PetaKabupatenKebumen_1",
+        });
+        labels.push(layer);
+        totalMarkers += 1;
+        layer.added = true;
+        addLabel(layer, i);
+        i++;
+      });
+
+      // reset label saat zoom berubah
+      resetLabels([layer_PetaKabupatenKebumen_1]);
+      map.on("zoomend", function () {
+        resetLabels([layer_PetaKabupatenKebumen_1]);
+      });
+      map.on("layeradd", function () {
+        resetLabels([layer_PetaKabupatenKebumen_1]);
+      });
+      map.on("layerremove", function () {
+        resetLabels([layer_PetaKabupatenKebumen_1]);
+      });
+
+      /* =============================================================
+       TOGGLE PANEL LAYER — logika buka/tutup panel layer
+    ============================================================= */
+      document.addEventListener("DOMContentLoaded", function () {
+        var isExpanded = true;
+        var panelLayer = document.querySelector(".leaflet-control-layers");
+        var tombolToggle = document.querySelector(".leaflet-control-layers-toggle");
+
+        tombolToggle.addEventListener("click", function () {
+          if (isExpanded) {
+            panelLayer.classList.remove("leaflet-control-layers-expanded");
+          } else {
+            panelLayer.classList.add("leaflet-control-layers-expanded");
+          }
+          isExpanded = !isExpanded;
+        });
+
+        // otomatis tutup panel di layar kecil
+        if (window.innerWidth < 650) {
+          setTimeout(function () {
+            panelLayer.classList.remove("leaflet-control-layers-expanded");
+            isExpanded = false;
+          }, 500);
+        }
+      });
+    </script>
+  </body>
+</html>
