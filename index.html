@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Portfolio - Nasywa Tsany Del Chano</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>Nasywa Tsany Del Chano</h1>
+  <button id="darkModeBtn">&#127769 Dark Mode</button>
+</header>
+
+<nav>
+  <a href="#about">About</a>
+  <a href="#projects">Projects</a>
+  <a href="#contact">Contact</a>
+</nav>
+
+<section id="about">
+  <h2>Tentang Saya</h2>
+  <p>Saya adalah mahasiswa yang tertarik pada bidang Web Development dan Fotogrametri.</p>
+</section>
+
+<section id="projects">
+  <h2>Project Saya</h2>
+
+  <div class="filter">
+    <button onclick="filterProject('all')">All</button>
+    <button onclick="filterProject('web')">Web</button>
+    <button onclick="filterProject('app')">App</button>
+  </div>
+
+  <div class="project-container">
+    <div class="project web">Website E-Commerce</div>
+    <div class="project app">Aplikasi Kasir</div>
+    <div class="project web">Landing Page Company</div>
+  </div>
+</section>
+
+<section id="contact">
+  <h2>Kontak</h2>
+  <form id="contactForm">
+    <input type="text" id="nama" placeholder="Nama">
+    <input type="email" id="email" placeholder="Email">
+    <textarea id="pesan" placeholder="Pesan"></textarea>
+    <button type="submit">Kirim</button>
+  </form>
+</section>
+
+<footer>ss
+  <p>© 2026 Portfolio</p>
+</footer>
+
+<script src="script.js"></script>
+
+</body>
+</html>
